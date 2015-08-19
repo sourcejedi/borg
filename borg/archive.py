@@ -483,6 +483,10 @@ class Archive:
         # Only chunkify the file if needed
         if chunks is None:
             fh = Archive._open_rb(path, st)
+            if hasattr(os, 'posix_fadvise'):  # python >= 3.3, only on UNIX
+                # Request maximum read-ahead.   Also cache drop-behind (linux 2.6.29+)
+                # avoids spoiling the cache for the OS and other processes.
+                os.posix_fadvise(fh, 0, 0, os.POSIX_FADV_SEQUENTIAL)
             with os.fdopen(fh, 'rb') as fd:
                 chunks = []
                 for chunk in self.chunker.chunkify(fd, fh):
