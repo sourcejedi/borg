@@ -67,6 +67,17 @@ except ImportError:
         platform_linux_source, platform_freebsd_source]):
         raise ImportError('The GIT version of Borg needs Cython. Install Cython or use a released version')
 
+# Note we don't bother putting libc "feature test macros" in define_macros.
+# Extensions are built with all the same compiler options as python was.
+# For example, python already needs large file support.
+# This means we don't necessarily have to define _FILE_OFFSET_BITS 64 ourself.
+# Maybe it's best not to, in case we break binary compatibility.
+# 
+define_macros = []
+import distutils
+compiler = distutils.ccompiler.new_compiler()
+if compiler.has_function('posix_fadvise'):
+    define_macros.append(('HAVE_POSIX_FADVISE', '1'))
 
 def detect_openssl(prefixes):
     for prefix in prefixes:
@@ -93,16 +104,11 @@ with open('README.rst', 'r') as fd:
 cmdclass = versioneer.get_cmdclass()
 cmdclass.update({'build_ext': build_ext, 'sdist': Sdist})
 
-# Note we don't bother setting define_macros to enable feature test macros.
-# Extensions are built with all the same compiler options as python was.
-# For example, python already needs large file support.
-# We don't need to define _FILE_OFFSET_BITS 64 ourself.
-
 ext_modules = [
-    Extension('borg.compress', [compress_source], libraries=['lz4']),
-    Extension('borg.crypto', [crypto_source], libraries=['crypto'], include_dirs=include_dirs, library_dirs=library_dirs),
-    Extension('borg.chunker', [chunker_source]),
-    Extension('borg.hashindex', [hashindex_source])
+    Extension('borg.compress', [compress_source], libraries=['lz4'], define_macros=define_macros),
+    Extension('borg.crypto', [crypto_source], libraries=['crypto'], include_dirs=include_dirs, library_dirs=library_dirs, define_macros=define_macros),
+    Extension('borg.chunker', [chunker_source], define_macros=define_macros),
+    Extension('borg.hashindex', [hashindex_source], define_macros=define_macros)
 ]
 if sys.platform.startswith('linux'):
     ext_modules.append(Extension('borg.platform_linux', [platform_linux_source], libraries=['acl']))
