@@ -93,6 +93,11 @@ with open('README.rst', 'r') as fd:
 cmdclass = versioneer.get_cmdclass()
 cmdclass.update({'build_ext': build_ext, 'sdist': Sdist})
 
+# Note we don't bother setting define_macros to enable feature test macros.
+# Extensions are built with all the same compiler options as python was.
+# For example, python already needs large file support.
+# We don't need to define _FILE_OFFSET_BITS 64 ourself.
+
 ext_modules = [
     Extension('borg.compress', [compress_source], libraries=['lz4']),
     Extension('borg.crypto', [crypto_source], libraries=['crypto'], include_dirs=include_dirs, library_dirs=library_dirs),

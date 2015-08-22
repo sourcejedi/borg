@@ -35,7 +35,7 @@ typedef struct {
     int num_buckets;
     int key_size;
     int value_size;
-    off_t bucket_size;
+    int bucket_size;
     int lower_limit;
     int upper_limit;
 } HashIndex;
@@ -134,7 +134,7 @@ static HashIndex *
 hashindex_read(const char *path)
 {
     FILE *fd;
-    off_t length, buckets_length, bytes_read;
+    size_t length, buckets_length, bytes_read;
     HashHeader header;
     HashIndex *index = NULL;
 
@@ -145,12 +145,12 @@ hashindex_read(const char *path)
     bytes_read = fread(&header, 1, sizeof(HashHeader), fd);
     if(bytes_read != sizeof(HashHeader)) {
         if(ferror(fd)) {
-            EPRINTF_PATH(path, "fread header failed (expected %ju, got %ju)",
-                         (uintmax_t) sizeof(HashHeader), (uintmax_t) bytes_read);
+            EPRINTF_PATH(path, "fread header failed (expected %zu, got %zu)",
+                         sizeof(HashHeader), bytes_read);
         }
         else {
-            EPRINTF_MSG_PATH(path, "fread header failed (expected %ju, got %ju)",
-                             (uintmax_t) sizeof(HashHeader), (uintmax_t) bytes_read);
+            EPRINTF_MSG_PATH(path, "fread header failed (expected %zu, got %zu)",
+                             sizeof(HashHeader), bytes_read);
         }
         goto fail;
     }
@@ -170,10 +170,10 @@ hashindex_read(const char *path)
         EPRINTF_MSG_PATH(path, "Unknown MAGIC in header");
         goto fail;
     }
-    buckets_length = (off_t)_le32toh(header.num_buckets) * (header.key_size + header.value_size);
+    buckets_length = (size_t)_le32toh(header.num_buckets) * (header.key_size + header.value_size);
     if(length != sizeof(HashHeader) + buckets_length) {
-        EPRINTF_MSG_PATH(path, "Incorrect file length (expected %ju, got %ju)",
-                         (uintmax_t) sizeof(HashHeader) + buckets_length, (uintmax_t) length);
+        EPRINTF_MSG_PATH(path, "Incorrect file length (expected %zu, got %zu)",
+                         sizeof(HashHeader) + buckets_length, length);
         goto fail;
     }
     if(!(index = malloc(sizeof(HashIndex)))) {
@@ -189,12 +189,12 @@ hashindex_read(const char *path)
     bytes_read = fread(index->buckets, 1, buckets_length, fd);
     if(bytes_read != buckets_length) {
         if(ferror(fd)) {
-            EPRINTF_PATH(path, "fread buckets failed (expected %ju, got %ju)",
-                         (uintmax_t) buckets_length, (uintmax_t) bytes_read);
+            EPRINTF_PATH(path, "fread buckets failed (expected %zu, got %zu)",
+                         buckets_length, bytes_read);
         }
         else {
-            EPRINTF_MSG_PATH(path, "fread buckets failed (expected %ju, got %ju)",
-                             (uintmax_t) buckets_length, (uintmax_t) bytes_read);
+            EPRINTF_MSG_PATH(path, "fread buckets failed (expected %zu, got %zu)",
+                             buckets_length, bytes_read);
         }
         free(index->buckets);
         free(index);
@@ -218,7 +218,7 @@ fail:
 static HashIndex *
 hashindex_init(int capacity, int key_size, int value_size)
 {
-    off_t buckets_length;
+    size_t buckets_length;
     HashIndex *index;
     int i;
     capacity = MAX(MIN_BUCKETS, capacity);
@@ -227,7 +227,7 @@ hashindex_init(int capacity, int key_size, int value_size)
         EPRINTF("malloc header failed");
         return NULL;
     }
-    buckets_length = (off_t)capacity * (key_size + value_size);
+    buckets_length = capacity * (key_size + value_size);
     if(!(index->buckets = calloc(buckets_length, 1))) {
         EPRINTF("malloc buckets failed");
         free(index);
@@ -256,7 +256,7 @@ hashindex_free(HashIndex *index)
 static int
 hashindex_write(HashIndex *index, const char *path)
 {
-    off_t buckets_length = (off_t)index->num_buckets * index->bucket_size;
+    size_t buckets_length = index->num_buckets * index->bucket_size;
     FILE *fd;
     HashHeader header = {
         .magic = MAGIC,
