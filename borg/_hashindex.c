@@ -177,7 +177,7 @@ hashindex_read(const char *path)
         goto fail;
     }
     if(!(index = malloc(sizeof(HashIndex)))) {
-        EPRINTF_PATH(path, "malloc header failed");
+        EPRINTF_PATH(path, "malloc index failed");
         goto fail;
     }
     if(!(index->buckets = malloc(buckets_length))) {
@@ -224,7 +224,7 @@ hashindex_init(int capacity, int key_size, int value_size)
     capacity = MAX(MIN_BUCKETS, capacity);
 
     if(!(index = malloc(sizeof(HashIndex)))) {
-        EPRINTF("malloc header failed");
+        EPRINTF("malloc index failed");
         return NULL;
     }
     buckets_length = capacity * (key_size + value_size);
