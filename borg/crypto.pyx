@@ -4,6 +4,7 @@ This could be replaced by PyCrypto or something similar when the performance
 of their PBKDF2 implementation is comparable to the OpenSSL version.
 """
 from libc.stdlib cimport malloc, free
+from libc.limits cimport INT_MAX
 
 API_VERSION = 2
 
@@ -130,14 +131,23 @@ cdef class AES:
         return self.ctx.iv[:16]
 
     def encrypt(self, data):
-        cdef int inl = len(data)
-        cdef int ctl = 0
-        cdef int outl = 0
+        cdef Py_ssize_t data_len
+        cdef int inl
+        cdef int outl
+        cdef int ctl
+
+        data_len = len(data)
+        if data_len > INT_MAX - 16:
+            raise OverflowError('len(data)')
+        inl = <int>data_len
+
         # note: modes that use padding, need up to one extra AES block (16b)
-        cdef unsigned char *out = <unsigned char *>malloc(inl+16)
+        cdef unsigned char *out = <unsigned char *>malloc(inl + 16)
         if not out:
             raise MemoryError
+
         try:
+            outl = 0
             if not EVP_EncryptUpdate(&self.ctx, out, &outl, data, inl):
                 raise Exception('EVP_EncryptUpdate failed')
             ctl = outl
@@ -149,16 +159,25 @@ cdef class AES:
             free(out)
 
     def decrypt(self, data):
-        cdef int inl = len(data)
-        cdef int ptl = 0
-        cdef int outl = 0
+        cdef Py_ssize_t data_len
+        cdef int inl
+        cdef int outl
+        cdef int ptl
+
+        data_len = len(data)
+        if data_len > INT_MAX - 16:
+            raise OverflowError('len(data)')
+        inl = <int>data_len
+
         # note: modes that use padding, need up to one extra AES block (16b).
         # This is what the openssl docs say. I am not sure this is correct,
         # but OTOH it will not cause any harm if our buffer is a little bigger.
-        cdef unsigned char *out = <unsigned char *>malloc(inl+16)
+        cdef unsigned char *out = <unsigned char *>malloc(inl + 16)
         if not out:
             raise MemoryError
+
         try:
+            outl = 0
             if not EVP_DecryptUpdate(&self.ctx, out, &outl, data, inl):
                 raise Exception('EVP_DecryptUpdate failed')
             ptl = outl
