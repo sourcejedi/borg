@@ -35,14 +35,13 @@ typedef struct {
     int num_buckets;
     int key_size;
     int value_size;
-    off_t bucket_size;
+    int bucket_size;
     int lower_limit;
     int upper_limit;
 } HashIndex;
 
 #define EMPTY _htole32(0xffffffff)
 #define DELETED _htole32(0xfffffffe)
-#define MAX_BUCKET_SIZE 512
 #define BUCKET_LOWER_LIMIT .25
 #define BUCKET_UPPER_LIMIT .90
 #define MIN_BUCKETS 1024
