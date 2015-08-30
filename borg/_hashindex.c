@@ -223,6 +223,9 @@ hashindex_init(int capacity, int key_size, int value_size)
     int i;
     capacity = MAX(MIN_BUCKETS, capacity);
 
+    assert(key_size < INT8_MAX);
+    assert(value_size < INT8_MAX);
+
     if(!(index = malloc(sizeof(HashIndex)))) {
         EPRINTF("malloc header failed");
         return NULL;
@@ -262,8 +265,8 @@ hashindex_write(HashIndex *index, const char *path)
         .magic = MAGIC,
         .num_entries = _htole32(index->num_entries),
         .num_buckets = _htole32(index->num_buckets),
-        .key_size = index->key_size,
-        .value_size = index->value_size
+        .key_size = (int8_t)index->key_size,
+        .value_size = (int8_t)index->value_size
     };
     int ret = 1;
 
