@@ -9,11 +9,15 @@
 #include <unistd.h>
 
 #if defined(BYTE_ORDER)&&(BYTE_ORDER == BIG_ENDIAN)
-#define _le32toh(x) __builtin_bswap32(x)
-#define _htole32(x) __builtin_bswap32(x)
+#define le32toh_(x) __builtin_bswap32(x)
+#define htole32_(x) __builtin_bswap32(x)
 #elif defined(BYTE_ORDER)&&(BYTE_ORDER == LITTLE_ENDIAN)
-#define _le32toh(x) (x)
-#define _htole32(x) (x)
+static uint32_t noswap32(uint32_t x)
+{
+    return x;
+}
+#define le32toh_(x) noswap32(x)
+#define htole32_(x) noswap32(x)
 #else
 #error Unknown byte order
 #endif
@@ -40,8 +44,8 @@ typedef struct {
     int upper_limit;
 } HashIndex;
 
-#define EMPTY _htole32(0xffffffff)
-#define DELETED _htole32(0xfffffffe)
+#define EMPTY htole32_(0xffffffff)
+#define DELETED htole32_(0xfffffffe)
 #define BUCKET_LOWER_LIMIT .25
 #define BUCKET_UPPER_LIMIT .90
 #define MIN_BUCKETS 1024
@@ -73,7 +77,7 @@ static void *hashindex_next_key(HashIndex *index, const void *key);
 static int
 hashindex_index(HashIndex *index, const void *key)
 {
-    return _le32toh(*((uint32_t *)key)) % index->num_buckets;
+    return le32toh_(*((uint32_t *)key)) % (uint32_t)index->num_buckets;
 }
 
 static int
@@ -174,8 +178,8 @@ hashindex_read(const char *path)
         EPRINTF_MSG_PATH(path, "Bad key/value size");
         goto fail;
     }
-    buckets = (size_t)_le32toh(header.num_buckets)
-    if (buckets > SIZE_MAX / (key_size + value_size)) {
+    buckets = le32toh_(header.num_buckets);
+    if (buckets > SIZE_MAX / (header.key_size + header.value_size)) {
         EPRINTF_MSG_PATH(path, "Too many buckets");
         goto fail;
     }
@@ -210,8 +214,8 @@ hashindex_read(const char *path)
         index = NULL;
         goto fail;
     }
-    index->num_entries = _le32toh(header.num_entries);
-    index->num_buckets = buckets;
+    index->num_entries = le32toh_(header.num_entries);
+    index->num_buckets = le32toh_(header.num_buckets);
     index->key_size = header.key_size;
     index->value_size = header.value_size;
     index->bucket_size = index->key_size + index->value_size;
@@ -277,8 +281,8 @@ hashindex_write(HashIndex *index, const char *path)
     FILE *fd;
     HashHeader header = {
         .magic = MAGIC,
-        .num_entries = _htole32(index->num_entries),
-        .num_buckets = _htole32(index->num_buckets),
+        .num_entries = htole32_(index->num_entries),
+        .num_buckets = htole32_(index->num_buckets),
         .key_size = (int8_t)index->key_size,
         .value_size = (int8_t)index->value_size
     };

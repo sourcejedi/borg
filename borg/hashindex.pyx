@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+cimport cython
+from libc.stdint cimport uint32_t
 import os
 
 API_VERSION = 2
@@ -21,13 +23,11 @@ cdef extern from "_hashindex.c":
     void *hashindex_next_key(HashIndex *index, void *key)
     int hashindex_delete(HashIndex *index, void *key)
     int hashindex_set(HashIndex *index, void *key, void *value)
-    int _htole32(int v)
-    int _le32toh(int v)
+    uint32_t htole32_(uint32_t v)
+    uint32_t le32toh_(uint32_t v)
 
 
 cdef _NoDefault = object()
-
-cimport cython
 
 @cython.internal
 cdef class IndexBase:
@@ -101,13 +101,13 @@ cdef class NSIndex(IndexBase):
         data = <int *>hashindex_get(self.index, <char *>key)
         if not data:
             raise KeyError
-        return _le32toh(data[0]), _le32toh(data[1])
+        return le32toh_(data[0]), le32toh_(data[1])
 
     def __setitem__(self, key, value):
         assert len(key) == self.key_size
-        cdef int[2] data
-        data[0] = _htole32(value[0])
-        data[1] = _htole32(value[1])
+        cdef uint32_t[2] data
+        data[0] = htole32_(value[0])
+        data[1] = htole32_(value[1])
         if not hashindex_set(self.index, <char *>key, data):
             raise Exception('hashindex_set failed')
 
@@ -147,7 +147,7 @@ cdef class NSKeyIterator:
         if not self.key:
             raise StopIteration
         cdef int *value = <int *>(self.key + self.key_size)
-        return (<char *>self.key)[:self.key_size], (_le32toh(value[0]), _le32toh(value[1]))
+        return (<char *>self.key)[:self.key_size], (le32toh_(value[0]), le32toh_(value[1]))
 
 
 cdef class ChunkIndex(IndexBase):
@@ -159,14 +159,14 @@ cdef class ChunkIndex(IndexBase):
         data = <int *>hashindex_get(self.index, <char *>key)
         if not data:
             raise KeyError
-        return _le32toh(data[0]), _le32toh(data[1]), _le32toh(data[2])
+        return le32toh_(data[0]), le32toh_(data[1]), le32toh_(data[2])
 
     def __setitem__(self, key, value):
         assert len(key) == self.key_size
-        cdef int[3] data
-        data[0] = _htole32(value[0])
-        data[1] = _htole32(value[1])
-        data[2] = _htole32(value[2])
+        cdef uint32_t[3] data
+        data[0] = htole32_(value[0]) # overflow here (see EMPTY)
+        data[1] = htole32_(value[1])
+        data[2] = htole32_(value[2])
         if not hashindex_set(self.index, <char *>key, data):
             raise Exception('hashindex_set failed')
 
@@ -216,4 +216,4 @@ cdef class ChunkKeyIterator:
         if not self.key:
             raise StopIteration
         cdef int *value = <int *>(self.key + self.key_size)
-        return (<char *>self.key)[:self.key_size], (_le32toh(value[0]), _le32toh(value[1]), _le32toh(value[2]))
+        return (<char *>self.key)[:self.key_size], (le32toh_(value[0]), le32toh_(value[1]), le32toh_(value[2]))
